@@ -1,123 +1,389 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
-import styles from '../styles/Home.module.css'
+import {
+  validatePassword,
+  validateEmail,
+  verifyToken,
+} from "../helpers/authHelpers";
+import { Button, Input } from "@mui/material";
+import TextField from "@mui/material/TextField";
+import styles from "../styles/Home.module.css";
+import { useEffect, useState } from "react";
+import { API_URL } from "../helpers/_frontendConstants";
+import { useDispatch, useSelector } from "react-redux";
+import { selectCreds, setCreds } from "../store/userSlice";
+import Router from "next/router";
+import Loading from "../components/loading";
 
-const inter = Inter({ subsets: ['latin'] })
+const textFieldStyle = {
+  display: "block",
+  marginBottom: "8px",
+};
+interface regStruct {
+  username: string;
+  email: string;
+  password: string;
+  confirm: string;
+}
 
+interface loginStruct {
+  username: string;
+  password: string;
+}
+
+interface errorStruct {
+  loginUsername: boolean;
+  loginPassword: boolean;
+  passChangeEmail: boolean;
+  registerUsername: boolean;
+  registerPassword: boolean;
+  registerConfirm: boolean;
+  registerEmail: boolean;
+}
 export default function Home() {
+  const [curMode, setCurMode] = useState<string>("login");
+  const [errors, setErrors] = useState<errorStruct>({
+    loginUsername: false,
+    loginPassword: false,
+    passChangeEmail: false,
+    registerUsername: false,
+    registerPassword: false,
+    registerConfirm: false,
+    registerEmail: false,
+  });
+  const [regData, setRegData] = useState<regStruct>({
+    username: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
+
+  const [loginData, setLoginData] = useState<loginStruct>({
+    username: "",
+    password: "",
+  });
+
+  const [email, setEmail] = useState<string>("");
+  const dispatch = useDispatch();
+  const credSelector = useSelector(selectCreds);
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (credSelector.creds) {
+      verifyToken(credSelector.creds.token).then((resp) => {
+        if (resp === true) {
+          Router.push("/dashboard");
+        }
+      });
+    }
+  });
+  function SubmitRegistrationForm() {
+    let emailValStatus: boolean = validateEmail(regData.email);
+    let someError: boolean = false;
+    let errs: errorStruct = {
+      loginUsername: false,
+      loginPassword: false,
+      passChangeEmail: false,
+      registerUsername: false,
+      registerPassword: false,
+      registerConfirm: false,
+      registerEmail: false,
+    };
+
+    if (regData.username.length === 0) {
+      someError = true;
+      errs.registerUsername = true;
+    }
+    if (emailValStatus === false) {
+      someError = true;
+      errs.registerEmail = true;
+    }
+    if (validatePassword(regData.password) == false) {
+      someError = true;
+      alert(
+        "Password requirements: at least 8 characters, at least one symbol, upper and lower case letters and a number"
+      );
+      errs.registerPassword = true;
+    }
+    if (regData.password != regData.confirm) {
+      someError = true;
+      errs.registerConfirm = true;
+    }
+    if (!someError) {
+      setLoading(true);
+      fetch(API_URL + "/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(regData),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setLoading(false);
+          if (data.message === "success") {
+            setRegData({ username: "", email: "", password: "", confirm: "" });
+            alert("Registration successful");
+            setCurMode("login");
+          } else if (data.message === "emailExists") {
+            alert("Email already exists");
+            errs.registerEmail = true;
+          } else if (data.message === "usernameExists") {
+            alert("Username already exists");
+            errs.registerUsername = true;
+          } else {
+            alert(data.message);
+          }
+          setLoading(false);
+        })
+        .catch((err) => console.log(`error: ${err}`));
+    }
+    setErrors(errs);
+  }
+
+  function SubmitLoginForm() {
+    let errs: errorStruct = {
+      loginUsername: false,
+      loginPassword: false,
+      passChangeEmail: false,
+      registerUsername: false,
+      registerPassword: false,
+      registerConfirm: false,
+      registerEmail: false,
+    };
+    let errorExists = false;
+    if (loginData.username.length == 0) {
+      errs.loginUsername = true;
+      errorExists = true;
+    }
+    if (loginData.password.length == 0) {
+      errs.loginPassword = true;
+      errorExists = true;
+    }
+    if(errorExists){
+      setLoading(false);
+    }
+    else {
+      fetch(API_URL + "/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(loginData),
+      })
+        .then((resp) => resp.json())
+        .then((data) => {
+          if (data.message === "Invalid password") {
+            alert("Invalid password");
+            errs.loginPassword = true;
+            setLoading(false);
+
+          } else if (data.message === "User not found") {
+            alert("User not found");
+            errs.loginUsername = true;
+            setLoading(false);
+          } else {
+            dispatch(
+              setCreds({
+                creds: {
+                  username: loginData.username,
+                  token: data.token,
+                },
+              })
+            );
+            Router.push("/dashboard");
+            setLoginData({ username: "", password: "" });
+
+          }
+          setErrors(errs);
+
+        })
+        .catch((err) => console.log(err));
+    }
+    setErrors(errs);
+  }
+
+  function SubmitChangePassForm() {
+    console.log(email);
+  }
+
+  function Login() {
+    return (
+      <div className="py-4 px-2">
+        <TextField
+          label="Username"
+          error={errors.loginUsername}
+          style={textFieldStyle}
+          onChange={(e) => {
+            setLoginData({
+              username: e.target.value,
+              password: loginData.password,
+            });
+          }}
+        />
+
+        <TextField
+          type="password"
+          label="Password"
+          error={errors.loginPassword}
+          style={textFieldStyle}
+          onChange={(e) => {
+            setLoginData({
+              username: loginData.username,
+              password: e.target.value,
+            });
+          }}
+        />
+        <Button
+          variant="contained"
+          className={styles.buttonStyle}
+          onClick={()=>{
+            SubmitLoginForm();
+            setLoading(true);
+          }}
+        >
+          Submit
+        </Button>
+        <p
+          className="text-[blue] mt-3"
+          onClick={() => {
+            setCurMode("forgot");
+          }}
+        >
+          Forgot Credentials?
+        </p>
+        <p
+          className="text-[blue] mt-3"
+          onClick={() => {
+            setCurMode("register");
+          }}
+        >
+          Do not have account? Register
+        </p>
+      </div>
+    );
+  }
+
+  function Register() {
+    return (
+      <div className="px-2 py-4">
+        <TextField
+          label="Username"
+          style={textFieldStyle}
+          error={errors.registerUsername}
+          onChange={(e) => {
+            setRegData({
+              username: e.target.value,
+              password: regData.password,
+              confirm: regData.confirm,
+              email: regData.email,
+            });
+          }}
+        />
+        <TextField
+          label="Email"
+          error={errors.registerEmail}
+          style={textFieldStyle}
+          onChange={(e) => {
+            setRegData({
+              username: regData.username,
+              password: regData.password,
+              confirm: regData.confirm,
+              email: e.target.value,
+            });
+          }}
+        />
+        <TextField
+          type="password"
+          label="Password"
+          error={errors.registerPassword}
+          style={textFieldStyle}
+          onChange={(e) => {
+            setRegData({
+              username: regData.username,
+              password: e.target.value,
+              confirm: regData.confirm,
+              email: regData.email,
+            });
+          }}
+        />
+        <TextField
+          type="password"
+          error={errors.registerConfirm}
+          label="Confirm Password"
+          style={textFieldStyle}
+          onChange={(e) => {
+            setRegData({
+              username: regData.username,
+              password: regData.password,
+              confirm: e.target.value,
+              email: regData.email,
+            });
+          }}
+        />
+        <Button
+          variant="contained"
+          className={styles.buttonStyle}
+          onClick={()=>{
+            SubmitRegistrationForm();
+          }}
+        >
+          Submit
+        </Button>
+        <p
+          className="text-[blue] mt-2"
+          onClick={() => {
+            setCurMode("login");
+          }}
+        >
+          Already have an account? Login
+        </p>
+      </div>
+    );
+  }
+
+  function ForgotPassword() {
+    return (
+      <div>
+        <TextField
+          error={errors.passChangeEmail}
+          label="Email"
+          style={textFieldStyle}
+          onChange={(e) => {
+            setEmail(e.target.value);
+          }}
+        />
+        <Button
+          className={styles.buttonStyle}
+          variant="contained"
+          onClick={()=>{
+            SubmitChangePassForm();
+            setLoading(true);
+          }}
+        >
+          Submit
+        </Button>
+        <p
+          className={styles.pStyle}
+          onClick={() => {
+            setCurMode("login");
+          }}
+        >
+          Back to login
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <Head>
-        <title>Create Next App</title>
-        <meta name="description" content="Generated by create next app" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-    </>
-  )
+    <div className={styles.dblock}>
+      {loading === true ? (
+        <Loading />
+      ) : curMode === "login" ? (
+        Login()
+      ) : curMode === "forgot" ? (
+        ForgotPassword()
+      ) : (
+        Register()
+      )}
+    </div>
+  );
 }
