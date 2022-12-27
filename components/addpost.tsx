@@ -9,52 +9,51 @@ import { newPostContainer } from "../styles/items";
 export default function AddPost() {
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState<string>("");
-  const [question,setQuestion] = useState<string>("");
-  const [answer,setAnswer] = useState<string>("");
-  const [title,setTitle] = useState<string>("");
+  const [question, setQuestion] = useState<string>("");
+  const [answer, setAnswer] = useState<string>("");
+  const [title, setTitle] = useState<string>("");
   const credSelector = useSelector(selectCreds);
-  
-  function SubmitPost(){
-    
-    let token:string = credSelector.creds.token;
+
+  function SubmitPost() {
+    let token: string = credSelector.creds.token;
 
     let postBody = {
-      title:title,
-      question:question,
-      answer:answer,
-      tags:tags,
-      token:token,
-    }
-    if(title.length===0){
+      title: title,
+      question: question,
+      answer: answer,
+      tags: tags,
+      token: token,
+    };
+    if (title.length === 0) {
       alert("Title cannot be empty");
-    }
-    else if(question.length===0){
+    } else if (question.length === 0) {
       alert("Question cannot be empty");
-    }
-    else if(answer.length===0){
+    } else if (answer.length === 0) {
       alert("Answer cannot be empty");
-    }
-    else if(tags.length===0){
+    } else if (tags.length === 0) {
       alert("At least one tag required");
+    } else {
+      fetch(API_URL + "/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "token":token
+        },
+        body: JSON.stringify(postBody),
+      })
+        .then((resp) => resp.text())
+        .then((data) => {
+          if (data === "success") {
+            setAnswer("");
+            setTags([]);
+            setQuestion("");
+            setTitle("");
+            alert("Post created");
+          } else {
+            alert("Error! Failed to create post");
+          }
+        }).catch(err=>alert("Failed to create post"));
     }
-    fetch(API_URL+"/api/posts",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(postBody)
-    }).then(resp=>resp.text()).then((data)=>{
-      if(data==="success"){
-        setAnswer("");
-        setTags([]);
-        setQuestion("");
-        setTitle("");
-        alert("Post created");
-      }
-      else{
-        alert(data);
-      }
-    });
   }
   function Tag(props: { name: string }) {
     return (
@@ -82,13 +81,21 @@ export default function AddPost() {
     );
   }
   return (
-    <div style={newPostContainer} >
+    <div style={newPostContainer}>
       <Container>
         <div className="w-fit p-0">
           <Typography variant="h5" className="mb-2 text-[#2587E4]">
             Add Post
           </Typography>
-          <TextField required={true} label="Title" onChange={(e)=>{setTitle(e.target.value)}} value={title}/>
+          <TextField
+            required={true}
+            label="Title"
+            placeholder="Title (Max 25 characters)"
+            onChange={(e) => {
+              setTitle(String(e.target.value).substring(0,25));
+            }}
+            value={title}
+          />
           <div className="mt-2 mb-2">
             <TextField
               placeholder="Maximum 15 characters"
@@ -100,8 +107,13 @@ export default function AddPost() {
             />
             <button
               onClick={() => {
-                setTags([...tags, currentTag]);
-                setCurrentTag("");
+                if(tags.length>=10){
+                  alert("Maximum 10 tags allowed");
+                }
+                else{
+                  setTags([...tags, currentTag]);
+                  setCurrentTag("");
+                }
               }}
               className="text-3xl bg-[#2587E4] text-[white] rounded-full px-2 pb-1 ml-3 mt-2"
             >
@@ -109,29 +121,39 @@ export default function AddPost() {
             </button>
           </div>
           <AddedTagBox />
-          <div className="mb-2">
+          <div className="mb-2 mt-2">
             <TextField
               required={true}
-              onChange={(e)=>{setQuestion(e.target.value)}}
-              value = {question}
+              onChange={(e) => {
+                setQuestion(String(e.target.value).substring(0,1000));
+              }}
+              value={question}
               label="Question"
+              placeholder="Question(max 1000 characters)"
               multiline={true}
               minRows={1}
-              style={{ width: "82%" }}
+              style={{ width: "82%",maxHeight:"20vh",overflow:"auto" }}
             />
           </div>
-          <div className="mb-2">
+          <div className="mb-2 mt-3">
             <TextField
               required={true}
-              onChange = {(e)=>{setAnswer(e.target.value)}}
+              onChange={(e) => {
+                setAnswer(String(e.target.value).substring(0,1000));
+              }}
               value={answer}
               label="Answer"
+              placeholder="Answer(max 1000 characters)"
               multiline={true}
               minRows={1}
-              style={{ width: "82%" }}
+              style={{ width: "82%",maxHeight:"20vh",overflow:"auto" }}
             />
           </div>
-          <Button variant="contained" style={{ marginTop: "5px" }} onClick={SubmitPost}>
+          <Button
+            variant="contained"
+            style={{ marginTop: "5px" }}
+            onClick={SubmitPost}
+          >
             Submit
           </Button>
         </div>

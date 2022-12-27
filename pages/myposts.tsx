@@ -12,7 +12,7 @@ export default function MyPosts(){
     return <div>
         <Navbar/>
         <div className="p-4">
-        <Posts api_url={api_url}/>
+        <Posts api_url={api_url} mode={1}/>
         </div>
     </div>
 }

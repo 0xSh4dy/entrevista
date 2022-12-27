@@ -14,13 +14,22 @@ export default async function handler(req:NextApiRequest,res:NextApiResponse){
         let collection = (await client).db(userDb).collection(postCollection);
         let message = "";
         let statusCode = 200;
+        let tag_arr = [];
+        let ctr = 0;
+        for(let item of req.body.tags){
+            if(ctr==10){
+                break;
+            }
+            tag_arr.push(item.substring(0,15));
+            ctr++;
+        }
         let newPost:postStruct = {
             author:getUsername(req.body.token),
-            title:sanitize(req.body.title),
-            question:sanitize(req.body.question),
-            answer:sanitize(req.body.answer),
+            title:sanitize(String(req.body.title).substring(0,25)),
+            question:sanitize(String(req.body.question).substring(0,1000)),
+            answer:sanitize(String(req.body.answer).substring(0,1000)),
             created_at:(new Date()).getTime(),
-            tags:sanitize(req.body.tags)
+            tags:sanitize(tag_arr)
         };
         try{
             collection.insertOne(newPost);
@@ -41,8 +50,17 @@ export default async function handler(req:NextApiRequest,res:NextApiResponse){
             all:true
         }
         let skipNum:any = req.query.id;
+        let post_tag = String(req.query.tag);
+        if(req.query.tag!=undefined){
+            fetcher.filter = {
+                tags:post_tag
+            }
+        }
+        console.log(fetcher)
+
         console.log("Fetching")
         let response = await fetchData(fetcher,2,{created_at:-1},parseInt(skipNum),5);
+        console.log(response)
         res.json({"message":response});
     }
     else{

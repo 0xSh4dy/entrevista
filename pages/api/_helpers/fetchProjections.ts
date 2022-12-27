@@ -18,7 +18,6 @@ async function fetchData(query:fetchModel,sort:number=0,sortFields={},skipNumber
     }
     else{
         try{
-            console.log("SORT-0")
             if(sort===0){
                 res = await collection.find(query.filter).project(query.projection);
             }

@@ -25,9 +25,8 @@ const newPostContainer = {
         padding:"10px 5px 15px 5px",
         borderRadius:"10px",
         width:"fit-content",
-        position:"fixed",
-        right:"0.5vw",
-        marginTop:"1vh",
+        marginLeft:"40vw",
+        marginTop:"20vh"
 } as React.CSSProperties;
 
 export {roundedButton,displayBlock,textStyle1,newPostContainer};
