@@ -53,7 +53,7 @@ export default async function handler(req:NextApiRequest,res:NextApiResponse){
         let post_tag = String(req.query.tag);
         if(req.query.tag!=undefined){
             fetcher.filter = {
-                tags:post_tag
+                tags:sanitize(post_tag)
             }
         }
         console.log(fetcher)
